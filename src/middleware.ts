@@ -1,30 +1,48 @@
+import { jwtVerify } from 'jose'
 import { NextResponse } from 'next/server'
+
+import { env } from '~/env'
 
 import type { NextRequest } from 'next/server'
 
-export function middleware(request: NextRequest) {
-  const isAuthenticated = false
+export async function middleware(request: NextRequest) {
+  const token = request.cookies.get('token')?.value
 
-  const authPaths = ['/login', '/register']
+  const authRoutes = ['/login', '/register']
+  const isAuthRoute = authRoutes.includes(request.nextUrl.pathname)
 
-  if (!isAuthenticated && !authPaths.includes(request.nextUrl.pathname)) {
-    return NextResponse.redirect(new URL('/login', request.url))
+  if (!isAuthRoute) {
+    if (!token) {
+      return NextResponse.redirect(new URL('/login', request.url))
+    }
+
+    try {
+      const secret = new TextEncoder().encode(env.JWT_SECRET)
+      await jwtVerify(token, secret)
+
+      return NextResponse.next()
+    } catch (error) {
+      request.cookies.delete('token')
+
+      const response = NextResponse.redirect(new URL('/login', request.url))
+      response.cookies.delete('token')
+
+      return response
+    }
+  } else if (token) {
+    try {
+      const secret = new TextEncoder().encode(env.JWT_SECRET)
+      await jwtVerify(token, secret)
+
+      return NextResponse.redirect(new URL('/', request.url))
+    } catch {
+      return NextResponse.next()
+    }
   }
 
-  if (isAuthenticated && authPaths.includes(request.nextUrl.pathname)) {
-    return NextResponse.redirect(new URL('/', request.url))
-  }
+  return NextResponse.next()
 }
 
 export const config = {
-  matcher: [
-    /*
-     * Match all request paths except for the ones starting with:
-     * - api (API routes)
-     * - _next/static (static files)
-     * - _next/image (image optimization files)
-     * - favicon.ico, sitemap.xml, robots.txt (metadata files)
-     */
-    '/((?!api|_next/static|_next/image|favicon.ico|sitemap.xml|robots.txt).*)',
-  ],
+  matcher: ['/((?!api|_next/static|_next/image|favicon.ico|sitemap.xml|robots.txt).*)'],
 }
