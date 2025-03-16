@@ -6,8 +6,10 @@
     "dev": "next dev --turbopack",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint",
-    "watch": "tsc --w --noemit"
+    "lint": "biome lint --write",
+    "format": "biome format --write",
+    "watch": "tsc --w --noemit",
+    "prepare": "husky"
   },
   "dependencies": {
     "@radix-ui/react-dropdown-menu": "^2.1.6",
@@ -35,6 +37,7 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "husky": "^9.1.7",
     "tailwindcss": "^4",
     "typescript": "^5"
   }
