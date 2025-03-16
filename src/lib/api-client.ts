@@ -1,35 +1,43 @@
 import ky, { type Options } from 'ky'
 
-/**
- * Wrapper around ky to automatically refresh tokens if they are expired.
- */
-async function requestWithRefresh<T>(url: string, options?: Options): Promise<T> {
-  let response = await ky(url, options)
+import { env } from '~/env'
+
+const kyInstance = ky.create({
+  prefixUrl: env.NEXT_PUBLIC_API_URL,
+})
+
+interface ExtendedOptions extends Options {
+  returnResponse?: boolean
+}
+
+async function requestWithRefresh<T>(url: string, options?: ExtendedOptions): Promise<T | Response> {
+  let response = await kyInstance(url.startsWith('/') ? url.slice(1) : url, options)
 
   if (response.status === 401) {
-    const refreshResponse = await ky.post('/api/auth/refresh')
+    const refreshResponse = await kyInstance('auth/refresh', { method: 'POST' })
 
     if (refreshResponse.ok) {
-      response = await ky(url, options)
+      response = await kyInstance(url, options)
     } else {
       throw new Error('Authentication expired, please log in again.')
     }
   }
 
+  if (options?.returnResponse) {
+    return response
+  }
+
   return response.json() as Promise<T>
 }
 
-/**
- * API object that contains all the methods to interact with the backend.
- */
 export const api = {
   request: requestWithRefresh,
 
-  get: <T>(url: string, options?: Options) => requestWithRefresh<T>(url, { ...options, method: 'GET' }),
+  get: <T>(url: string, options?: ExtendedOptions) => requestWithRefresh<T>(url, { ...options, method: 'GET' }),
 
-  post: <T>(url: string, options?: Options) => requestWithRefresh<T>(url, { ...options, method: 'POST' }),
+  post: <T>(url: string, options?: ExtendedOptions) => requestWithRefresh<T>(url, { ...options, method: 'POST' }),
 
-  put: <T>(url: string, options?: Options) => requestWithRefresh<T>(url, { ...options, method: 'PUT' }),
+  put: <T>(url: string, options?: ExtendedOptions) => requestWithRefresh<T>(url, { ...options, method: 'PUT' }),
 
-  delete: <T>(url: string, options?: Options) => requestWithRefresh<T>(url, { ...options, method: 'DELETE' }),
+  delete: <T>(url: string, options?: ExtendedOptions) => requestWithRefresh<T>(url, { ...options, method: 'DELETE' }),
 }

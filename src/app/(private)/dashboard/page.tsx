@@ -2,8 +2,8 @@ import type { Metadata } from 'next'
 import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
 
+import { api } from '~/lib/api-client'
 import { verifyToken } from '~/lib/auth'
-import { env } from '~/env'
 
 export const metadata: Metadata = {
   title: 'Dashboard',
@@ -11,8 +11,6 @@ export const metadata: Metadata = {
 }
 
 async function getUserData() {
-  const API_URL = env.NEXT_PUBLIC_API_URL
-
   const cookieStore = cookies()
   const accessToken = (await cookieStore).get('access_token')?.value
 
@@ -22,23 +20,20 @@ async function getUserData() {
 
   try {
     const isValid = await verifyToken(accessToken)
-
     if (!isValid) {
       return null
     }
 
-    const response = await fetch(`${API_URL}/auth/me`, {
+    const result = await api.get<{ user: { username: string; email: string; role: string } }>('/auth/me', {
       headers: {
         Cookie: `access_token=${accessToken}`,
       },
       next: { revalidate: 60 },
     })
 
-    if (!response.ok) {
-      return null
-    }
+    const data = result instanceof Response ? await result.json() : result
 
-    return response.json()
+    return data
   } catch (error) {
     console.error('❌ Error fetching user data:', error)
     return null

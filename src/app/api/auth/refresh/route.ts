@@ -1,11 +1,10 @@
 import { type NextRequest, NextResponse } from 'next/server'
 
 import { env } from '~/env'
-
-const API_URL = env.NEXT_PUBLIC_API_URL
+import { api } from '~/lib/api-client'
 
 /**
- * This route handler is used to refresh the access token
+ * This route handler is used to refresh the access token.
  * It proxies the request to the backend and forwards the cookies.
  */
 export async function POST(request: NextRequest) {
@@ -16,12 +15,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ message: 'Refresh token required.' }, { status: 401 })
     }
 
-    const response = await fetch(`${API_URL}/auth/refresh`, {
+    const response = await api.request<Response>('/auth/refresh', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         Cookie: `refresh_token=${refreshToken}`,
       },
+      returnResponse: true,
     })
 
     const data = await response.json()
@@ -31,33 +31,34 @@ export async function POST(request: NextRequest) {
     }
 
     const nextResponse = NextResponse.json(data)
+    const cookiesFromBackend = response.headers.getSetCookie()
 
-    const cookies = response.headers.getSetCookie()
+    if (cookiesFromBackend && cookiesFromBackend.length > 0) {
+      for (const cookie of cookiesFromBackend) {
+        const [name, ...parts] = cookie.split('=')
+        const value = parts.join('=').split(';')[0]
 
-    for (const cookie of cookies) {
-      const [name, ...parts] = cookie.split('=')
-      const value = parts.join('=').split(';')[0]
-
-      if (name === 'access_token' || name === 'refresh_token') {
+        let expires: Date | undefined
         const maxAgeMatch = cookie.match(/Max-Age=(\d+)/i)
         const expiresMatch = cookie.match(/Expires=([^;]+)/i)
 
-        let expires: Date | undefined
         if (maxAgeMatch?.[1]) {
           expires = new Date(Date.now() + Number.parseInt(maxAgeMatch[1]) * 1000)
         } else if (expiresMatch?.[1]) {
           expires = new Date(expiresMatch[1])
         }
 
-        nextResponse.cookies.set({
-          name,
-          value,
-          httpOnly: true,
-          secure: env.NODE_ENV === 'production',
-          sameSite: 'lax',
-          path: '/',
-          expires,
-        })
+        if (name === 'access_token' || name === 'refresh_token') {
+          nextResponse.cookies.set({
+            name,
+            value,
+            httpOnly: true,
+            secure: env.NODE_ENV === 'production',
+            sameSite: 'lax',
+            path: '/',
+            expires,
+          })
+        }
       }
     }
 

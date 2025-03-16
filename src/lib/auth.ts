@@ -1,8 +1,7 @@
 import { jwtVerify } from 'jose'
 
 import { env } from '~/env'
-
-const API_URL = env.NEXT_PUBLIC_API_URL
+import { api } from '~/lib/api-client'
 
 interface LoginCredentials {
   credential: string
@@ -22,58 +21,48 @@ interface AuthResponse {
 }
 
 /**
- * Login function that calls the backend.
+ * Login function that calls the backend using ky wrapper.
  */
 export async function login(credentials: LoginCredentials): Promise<AuthResponse> {
-  const response = await fetch(`${API_URL}/auth/login`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(credentials),
-    credentials: 'include',
-  })
+  try {
+    const result = await api.post<AuthResponse>('/auth/login', {
+      json: credentials,
+      credentials: 'include',
+    })
 
-  if (!response.ok) {
-    const error = await response.json()
+    const data = result instanceof Response ? await result.json() : result
+    return data
+  } catch (error: any) {
     throw new Error(error.message || 'Login failed.')
   }
-
-  return response.json()
 }
 
 /**
- * Logout function that calls the backend.
+ * Logout function that calls the backend using ky wrapper.
  */
 export async function logout(): Promise<{ message: string }> {
-  const response = await fetch(`${API_URL}/auth/logout`, {
-    method: 'POST',
-    credentials: 'include',
-  })
-
-  if (!response.ok) {
-    const error = await response.json()
+  try {
+    const result = await api.post<{ message: string }>('/auth/logout', {
+      credentials: 'include',
+    })
+    return result instanceof Response ? await result.json() : result
+  } catch (error: any) {
     throw new Error(error.message || 'Logout failed.')
   }
-
-  return response.json()
 }
 
 /**
- * Logout from all devices.
+ * Logout from all devices using ky wrapper.
  */
 export async function logoutAll(): Promise<{ message: string }> {
-  const response = await fetch(`${API_URL}/auth/logout-all`, {
-    method: 'POST',
-    credentials: 'include',
-  })
-
-  if (!response.ok) {
-    const error = await response.json()
+  try {
+    const result = await api.post<{ message: string }>('/auth/logout-all', {
+      credentials: 'include',
+    })
+    return result instanceof Response ? await result.json() : result
+  } catch (error: any) {
     throw new Error(error.message || 'Logout from all devices failed.')
   }
-
-  return response.json()
 }
 
 /**
@@ -82,9 +71,7 @@ export async function logoutAll(): Promise<{ message: string }> {
 export async function verifyToken(token: string): Promise<boolean> {
   try {
     const JWT_SECRET = env.JWT_SECRET
-
     const secretKey = new TextEncoder().encode(JWT_SECRET)
-
     const { payload } = await jwtVerify(token, secretKey)
 
     const currentTime = Math.floor(Date.now() / 1000)
@@ -104,19 +91,18 @@ export async function verifyToken(token: string): Promise<boolean> {
 }
 
 /**
- * Get current user from cookies (client-side).
+ * Get current user using ky wrapper.
  */
 export async function getCurrentUser(): Promise<User | null> {
   try {
-    const response = await fetch(`${API_URL}/me`, {
+    const data = await api.get<{ user: User }>('/auth/me', {
       credentials: 'include',
     })
 
-    if (!response.ok) {
-      return null
+    if (data instanceof Response) {
+      const jsonData = await data.json()
+      return jsonData.user
     }
-
-    const data = await response.json()
     return data.user
   } catch (error) {
     console.error('❌ Failed to get current user:', error)

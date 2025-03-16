@@ -1,11 +1,10 @@
 import { type NextRequest, NextResponse } from 'next/server'
 
 import { env } from '~/env'
-
-const API_URL = env.NEXT_PUBLIC_API_URL
+import { api } from '~/lib/api-client'
 
 /**
- * This route handler is used to log out the user
+ * This route handler is used to log out the user.
  * It proxies the request to the backend and forwards the cookies.
  */
 export async function POST(request: NextRequest) {
@@ -13,15 +12,12 @@ export async function POST(request: NextRequest) {
     const accessToken = request.cookies.get('access_token')?.value
     const refreshToken = request.cookies.get('refresh_token')?.value
 
-    const response = await fetch(`${API_URL}/auth/logout`, {
-      method: 'POST',
+    const data = await api.post<{ message: string }>('/auth/logout', {
       headers: {
         'Content-Type': 'application/json',
         Cookie: `access_token=${accessToken}; refresh_token=${refreshToken}`,
       },
     })
-
-    const data = await response.json()
 
     const nextResponse = NextResponse.json(data)
 
