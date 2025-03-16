@@ -1,42 +1,33 @@
-import { jwtVerify } from 'jose'
 import { NextResponse } from 'next/server'
 
-import { env } from '~/env'
+import { verifyToken } from '~/lib/auth'
 
 import type { NextRequest } from 'next/server'
 
+const authRoutes = ['/login', '/register']
+
 export async function middleware(request: NextRequest) {
-  const token = request.cookies.get('token')?.value
+  const { pathname } = request.nextUrl
 
-  const authRoutes = ['/login', '/register']
-  const isAuthRoute = authRoutes.includes(request.nextUrl.pathname)
+  const accessToken = request.cookies.get('access_token')?.value
+  const refreshToken = request.cookies.get('refresh_token')?.value
 
-  if (!isAuthRoute) {
-    if (!token) {
-      return NextResponse.redirect(new URL('/login', request.url))
-    }
+  const isAuthRoute = authRoutes.some((route) => pathname === route || pathname.startsWith(`${route}/`))
 
+  if (!isAuthRoute && !accessToken) {
+    const url = new URL('/login', request.url)
+    url.searchParams.set('callbackUrl', encodeURI(pathname))
+    return NextResponse.redirect(url)
+  }
+
+  if (isAuthRoute && accessToken) {
     try {
-      const secret = new TextEncoder().encode(env.JWT_SECRET)
-      await jwtVerify(token, secret)
-
-      return NextResponse.next()
+      const isValid = await verifyToken(accessToken)
+      if (isValid) {
+        return NextResponse.redirect(new URL('/dashboard', request.url))
+      }
     } catch (error) {
-      request.cookies.delete('token')
-
-      const response = NextResponse.redirect(new URL('/login', request.url))
-      response.cookies.delete('token')
-
-      return response
-    }
-  } else if (token) {
-    try {
-      const secret = new TextEncoder().encode(env.JWT_SECRET)
-      await jwtVerify(token, secret)
-
-      return NextResponse.redirect(new URL('/', request.url))
-    } catch {
-      return NextResponse.next()
+      console.error('❌ Token verification failed:', error)
     }
   }
 
@@ -44,5 +35,15 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/((?!api|_next/static|_next/image|favicon.ico|sitemap.xml|robots.txt).*)'],
+  matcher: [
+    /*
+     * Match all request paths except:
+     * - _next/static (static files)
+     * - _next/image (image optimization files)
+     * - favicon.ico (favicon file)
+     * - public files (public directory)
+     * - api routes (they handle their own auth)
+     */
+    '/((?!_next/static|_next/image|favicon.ico|public|api).*)',
+  ],
 }

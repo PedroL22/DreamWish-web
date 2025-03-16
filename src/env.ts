@@ -3,15 +3,23 @@ import { z } from 'zod'
 
 export const env = createEnv({
   server: {
+    NODE_ENV: z.enum(['development', 'production']),
     JWT_SECRET: z.string().min(1),
-    API_URL: z.string().min(1).url(),
   },
+  client: {
+    NEXT_PUBLIC_API_URL: z.string().min(1).url(),
+  },
+  clientPrefix: 'NEXT_PUBLIC_',
 
   /**
    * What object holds the environment variables at runtime. This is usually
    * `process.env` or `import.meta.env`.
    */
-  runtimeEnv: process.env,
+  runtimeEnv: {
+    NODE_ENV: process.env.NODE_ENV,
+    JWT_SECRET: process.env.JWT_SECRET,
+    NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL,
+  },
 
   /**
    * By default, this library will feed the environment variables directly to
