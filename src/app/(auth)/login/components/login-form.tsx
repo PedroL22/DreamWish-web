@@ -6,7 +6,6 @@ import { type FormEvent, useState } from 'react'
 import { AlertCircle, Loader2 } from 'lucide-react'
 import { Alert, AlertDescription } from '~/components/ui/alert'
 import { Button } from '~/components/ui/button'
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '~/components/ui/card'
 import { Input } from '~/components/ui/input'
 import { Label } from '~/components/ui/label'
 
@@ -39,12 +38,12 @@ export function LoginForm() {
   }
 
   return (
-    <Card className='mx-auto w-full max-w-md'>
-      <CardHeader>
-        <CardTitle className='text-2xl'>Login</CardTitle>
-        <CardDescription>Enter your credentials to access your account</CardDescription>
-      </CardHeader>
-      <CardContent>
+    <div className='mx-auto w-full max-w-md'>
+      <div>
+        <div className='text-2xl'>Login</div>
+        <div>Enter your credentials to access your account</div>
+      </div>
+      <div>
         <form onSubmit={handleSubmit} className='space-y-4'>
           {error && (
             <Alert variant='destructive'>
@@ -95,15 +94,15 @@ export function LoginForm() {
             )}
           </Button>
         </form>
-      </CardContent>
-      <CardFooter className='flex justify-center'>
+      </div>
+      <div className='flex justify-center'>
         <p className='text-muted-foreground text-sm'>
           Don&apos;t have an account?{' '}
           <a href='/register' className='text-primary hover:underline'>
             Sign up
           </a>
         </p>
-      </CardFooter>
-    </Card>
+      </div>
+    </div>
   )
 }
